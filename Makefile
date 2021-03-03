@@ -6,3 +6,4 @@ clean:
 	@rm -fr *.dist-info
 	@rm -fr *.egg-info
 	@rm -fr .ipynb_checkpoints/
+	@rm -fr .DS_Store
