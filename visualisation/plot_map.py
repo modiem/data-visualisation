@@ -4,6 +4,9 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
+from folium.features import DivIcon
+import folium
+
 
 
 with open("geojson.json") as f:
@@ -15,8 +18,10 @@ sport_template = dict(
     layout = go.Layout(font=dict(
                             family="Old Standard TT",
                             ),
-                       paper_bgcolor="white",
-                       hoverlabel=dict(
+                    #    paper_bgcolor="#EAE7D6",
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        hoverlabel=dict(
                                    bordercolor="black",
                                    bgcolor ="white",
                                    font_size=15,
@@ -26,9 +31,10 @@ sport_template = dict(
                                   yanchor="top",
                                   yref="paper",
                                   ),
-                       coloraxis_colorbar=dict(
-                                  outlinewidth = 0)
-                      ))
+                        coloraxis_colorbar=dict(
+                                  outlinewidth = 0),
+))
+
 
 def plot_district_choropleth(pallette="magenta", 
                              df=df, 
@@ -90,12 +96,13 @@ def plot_treemap_all(pallete="curl", df=df, template=sport_template):
 
     fig.update_layout(
         title = dict(
-            text = "Sports Providers in Amsterdam <br> (Click Area to Expand)"),
+            text = "Sports Distribution in Amsterdam by Type<br> (Click to Expand)"),
         coloraxis_colorbar=dict(
             title="Counts",
             tickvals=[10,30, 50, 70]),
         template=template
     )
+    
     return fig
 
 def plot_treemap_district(pallete="curl", df=df, template=sport_template):
@@ -118,7 +125,7 @@ def plot_treemap_district(pallete="curl", df=df, template=sport_template):
 
     fig.update_layout(
         title = dict(
-            text = "Sports Providers in different City Districts<br>(Click Area to Expand)",),
+            text = "Sports Distribution in City Districts<br>(Click to Expand)",),
         coloraxis_colorbar=dict(
             title="Counts",
         ),
@@ -127,3 +134,42 @@ def plot_treemap_district(pallete="curl", df=df, template=sport_template):
     )
     
     return fig
+
+def plot_choropleth_openstreet(df=df):
+  
+    # Initialize the map: 52.3676° N, 4.9041° E
+    m = folium.Map(location=[52.3676, 4.9041], zoom_start=11)
+    
+    district_count = pd.DataFrame(df.groupby("Stadsdeel").count()["Naam"]).reset_index()
+    district_count = district_count.rename(columns={"Stadsdeel": "District", "Naam": "Count"})
+    district_count["text"] = district_count["District"] + '<br>' + '<br>'+district_count["Count"].astype(str) + " Sports Providers in the District."
+
+    # Add the color for the chloropleth:
+    m.choropleth(
+    geo_data=geojson,
+    name='choropleth',
+    data=district_count,
+    columns=['District', 'Count'],
+    key_on='feature.properties.Stadsdeel',
+    fill_color='OrRd',
+    fill_opacity=0.7,
+    line_color="white",
+    legend_name='Number of Sports Providers'
+    )
+    folium.LayerControl().add_to(m)
+
+
+    for district in geojson["features"]:
+        
+        lon, lat = np.array(district["geometry"]["coordinates"]).mean(axis=1).flatten()
+        name = district["properties"]["Stadsdeel"]
+        folium.map.Marker(
+            [lat, lon],
+            icon=DivIcon(
+                icon_size=(8,8),
+                icon_anchor=(15,10),
+                html=f'<div style="font-size: 10pt; text_algnment=center;">{name}</div>',
+                )
+            ).add_to(m)
+            
+    return m
